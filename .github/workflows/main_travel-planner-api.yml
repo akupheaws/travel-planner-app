@@ -1,4 +1,6 @@
-name: Build and deploy Node.js app to Azure Web App - travel-planner-rg-api
+# Docs for the Azure Web Apps Deploy action: <https://github.com/Azure/webapps-deploy>
+
+name: Build and deploy Node.js app to Azure Web App - travel-planner-api
 
 on:
   push:
@@ -15,34 +17,39 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Checkout code
+      - uses: actions/checkout@v4
 
+      # Setup Node.js
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: "24.x"
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+          node-version: '18.x'
 
+      # Install dependencies (inside backend)
       - name: Install dependencies
-        working-directory: ./backend
-        run: npm install
+        run: |
+          cd backend
+          npm install
 
-      - name: Build application
-        working-directory: ./backend
-        run: npm run build --if-present
+      # Optional build step
+      - name: Build app (if present)
+        run: |
+          cd backend
+          npm run build --if-present
 
+      # Login to Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_967087E555B84161A1AB01543B30C326 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_85BA7F85461E4D50910A5F5277595239 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C412E1B992FF4DB9961B504C8796FDD7 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_494EF3608DDF459F83B62772C92F5D8D }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E2649882564542B0A8EFDB6CE121D946 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B241A06BD6764D5BAA65C3E85341AAB7 }}
 
-      - name: Deploy backend to Azure Web App
+      # Deploy ONLY backend folder
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "travel-planner-rg-api"
-          slot-name: "Production"
-          package: ./backend
+          app-name: 'travel-planner-api'
+          slot-name: 'Production'
+          package: backend
