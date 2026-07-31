@@ -1,6 +1,6 @@
 <div align="center">
 
-# Wanderly
+# A Three Tier Travel Itinerary Planner on Microsoft Azure
 
 ## Azure Travel Itinerary Planner
 
