@@ -1,65 +1,76 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy Node.js app to Azure Web App - travel-planner-rg-api
+name: Deploy Backend to Azure App Service - travel-planner-rg-api
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/main_travel-planner-rg-api.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: travel-planner-rg-api-production
+  cancel-in-progress: true
+
+env:
+  AZURE_WEBAPP_NAME: travel-planner-rg-api
+  BACKEND_PATH: backend
+  NODE_VERSION: "24.x"
+
 jobs:
-  build:
+  build-and-deploy:
+    name: Build and Deploy Backend
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Set up Node.js version
-        uses: actions/setup-node@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: '24.x'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-      - name: npm install, build, and test
+      - name: Verify backend package
+        working-directory: ${{ env.BACKEND_PATH }}
         run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+          test -f package.json || {
+            echo "::error::backend/package.json was not found"
+            exit 1
+          }
 
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path: .
+      - name: Install dependencies
+        working-directory: ${{ env.BACKEND_PATH }}
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      - name: Build backend
+        working-directory: ${{ env.BACKEND_PATH }}
+        run: npm run build --if-present
 
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: node-app
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_4B7F2185EC714D27A91708F6E1F5D4B7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_02EC44FFB92746EC9CE3210DF50569DC }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A231017CE87D44D3A07A64686FD69DEF }}
+      - name: Verify publish profile secret
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TRAVEL_PLANNER_RG_API }}
+        run: |
+          if [ -z "$PUBLISH_PROFILE" ]; then
+            echo "::error::Missing repository secret: AZURE_WEBAPP_PUBLISH_PROFILE_TRAVEL_PLANNER_RG_API"
+            exit 1
+          fi
 
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
+      - name: Deploy backend to Azure App Service
+        uses: Azure/webapps-deploy@v3
         with:
-          app-name: 'travel-planner-rg-api'
-          slot-name: 'Production'
-          package: .
-          
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TRAVEL_PLANNER_RG_API }}
+          package: ./${{ env.BACKEND_PATH }}
